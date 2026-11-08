@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fábrica de Pixel - Jogo Arcade</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #111;
+      color: #fff;
+      font-family: 'Courier New', Courier, monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      user-select: none;
+    }
+    h1 { margin-bottom: 10px; color: #00ffcc; text-shadow: 2px 2px #ff007f; }
+    #placar { font-size: 20px; margin-bottom: 10px; }
+    canvas {
+      background-color: #1e1e2e;
+      border: 4px solid #00ffcc;
+      box-shadow: 0 0 20px rgba(0, 255, 204, 0.3);
+      max-width: 95vw;
+    }
+    #controles {
+      margin-top: 15px;
+      display: flex;
+      gap: 20px;
+    }
+    button {
+      background-color: #ff007f;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      font-size: 18px;
+      font-family: inherit;
+      font-weight: bold;
+      cursor: pointer;
+      border-radius: 6px;
+    }
+    button:active { transform: scale(0.95); }
+    p.dica { margin-top: 10px; font-size: 14px; color: #aaa; }
+  </style>
+</head>
+<body>
+
+  <h1>FÁBRICA DE PIXEL</h1>
+  <div id="placar">Pontos: <span id="pontos">0</span> | Recorde: <span id="recorde">0</span></div>
+  <canvas id="jogo" width="400" height="500"></canvas>
+
+  <div id="controles">
+    <button id="btnEsq">◀ ESQUERDA</button>
+    <button id="btnReiniciar" style="display:none; background:#00ffcc; color:#111;">JOGAR DE NOVO</button>
+    <button id="btnDir">DIREITA ▶</button>
+  </div>
+  <p class="dica">Use as setas do teclado (◀ ▶) ou os botões acima</p>
+
+  <script>
+    const canvas = document.getElementById('jogo');
+    const ctx = canvas.getContext('2d');
+    const elPontos = document.getElementById('pontos');
+    const elRecorde = document.getElementById('recorde');
+    const btnReiniciar = document.getElementById('btnReiniciar');
+
+    let jogador = { x: 180, y: 450, largura: 40, altura: 20, velocidade: 6 };
+    let obstaculos = [];
+    let pontos = 0;
+    let recorde = 0;
+    let gameOver = false;
+    let teclas = { esquerda: false, direita: false };
+    let frame = 0;
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft' || e.key === 'a') teclas.esquerda = true;
+      if (e.key === 'ArrowRight' || e.key === 'd') teclas.direita = true;
+    });
+    document.addEventListener('keyup', (e) => {
+      if (e.key === 'ArrowLeft' || e.key === 'a') teclas.esquerda = false;
+      if (e.key === 'ArrowRight' || e.key === 'd') teclas.direita = false;
+    });
+
+    const btnEsq = document.getElementById('btnEsq');
+    const btnDir = document.getElementById('btnDir');
+    btnEsq.onmousedown = btnEsq.ontouchstart = () => teclas.esquerda = true;
+    btnEsq.onmouseup = btnEsq.ontouchend = () => teclas.esquerda = false;
+    btnDir.onmousedown = btnDir.ontouchstart = () => teclas.direita = true;
+    btnDir.onmouseup = btnDir.ontouchend = () => teclas.direita = false;
+
+    btnReiniciar.onclick = () => {
+      obstaculos = [];
+      pontos = 0;
+      elPontos.innerText = pontos;
+      jogador.x = 180;
+      gameOver = false;
+      btnReiniciar.style.display = 'none';
+      loop();
+    };
+
+    function criarObstaculo() {
+      const largura = Math.floor(Math.random() * 60) + 30;
+      const x = Math.floor(Math.random() * (canvas.width - largura));
+      const velocidade = 3 + Math.min(pontos * 0.15, 7);
+      obstaculos.push({ x, y: -20, largura, altura: 20, velocidade });
+    }
+
+    function atualizar() {
+      if (teclas.esquerda && jogador.x > 0) jogador.x -= jogador.velocidade;
+      if (teclas.direita && jogador.x + jogador.largura < canvas.width) jogador.x += jogador.velocidade;
+
+      frame++;
+      if (frame % Math.max(20, 45 - Math.floor(pontos / 2)) === 0) {
+        criarObstaculo();
+      }
+
+      for (let i = obstaculos.length - 1; i >= 0; i--) {
+        let obs = obstaculos[i];
+        obs.y += obs.velocidade;
+
+        if (
+          jogador.x < obs.x + obs.largura &&
+          jogador.x + jogador.largura > obs.x &&
+          jogador.y < obs.y + obs.altura &&
+          jogador.y + jogador.altura > obs.y
+        ) {
+          gameOver = true;
+          if (pontos > recorde) {
+            recorde = pontos;
+            elRecorde.innerText = recorde;
+          }
+          btnReiniciar.style.display = 'inline-block';
+        }
+
+        if (obs.y > canvas.height) {
+          obstaculos.splice(i, 1);
+          if (!gameOver) {
+            pontos++;
+            elPontos.innerText = pontos;
+          }
+        }
+      }
+    }
+
+    function desenhar() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = '#00ffcc';
+      ctx.fillRect(jogador.x, jogador.y, jogador.largura, jogador.altura);
+
+      ctx.fillStyle = '#ff007f';
+      for (let obs of obstaculos) {
+        ctx.fillRect(obs.x, obs.y, obs.largura, obs.altura);
+      }
+
+      if (gameOver) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 32px Courier New';
+        ctx.textAlign = 'center';
+        ctx.fillText('FIM DE JOGO!', canvas.width / 2, canvas.height / 2);
+      }
+    }
+
+    function loop() {
+      if (!gameOver) {
+        atualizar();
+        desenhar();
+        requestAnimationFrame(loop);
+      }
+    }
+
+    loop();
+  </script>
+</body>
+</html>
